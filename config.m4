@@ -90,5 +90,8 @@ if test "$PHP_IDB" != "no"; then
   dnl In case of no dependencies
   AC_DEFINE(HAVE_IDB, 1, [ Have idb support ])
 
-  PHP_NEW_EXTENSION(idb, idb.c, $ext_shared)
+  PHP_REQUIRE_CXX()
+  CXXFLAGS="$CXXFLAGS -std=c++11"
+  PHP_ADD_LIBRARY(stdc++, "", EXTRA_LDFLAGS)
+  PHP_NEW_EXTENSION(idb, idb.cpp, $ext_shared)
 fi

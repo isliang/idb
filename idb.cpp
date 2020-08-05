@@ -4,9 +4,13 @@
 # include "config.h"
 #endif
 
+extern "C" {
 #include "php.h"
 #include "ext/standard/info.h"
 #include "php_idb.h"
+}
+
+#include <rocksdb/db.h>
 
 /* For compatibility with older PHP versions */
 #ifndef ZEND_PARSE_PARAMETERS_NONE
@@ -102,5 +106,7 @@ zend_module_entry idb_module_entry = {
 # ifdef ZTS
 ZEND_TSRMLS_CACHE_DEFINE()
 # endif
+BEGIN_EXTERN_C()
 ZEND_GET_MODULE(idb)
+END_EXTERN_C()
 #endif
