@@ -44,29 +44,88 @@ PHP_MINFO_FUNCTION(idb)
 
 /* {{{ arginfo
  */
-ZEND_BEGIN_ARG_INFO_EX(arginfo_idb_echo, 0, 0, 1)
-    ZEND_ARG_INFO(0, path)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_idb_construct, 0, 0, 1)
+ ZEND_ARG_INFO(0, path)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_idb_get, 0, 0, 1)
+    ZEND_ARG_INFO(0, key)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_idb_set, 0, 0, 2)
+    ZEND_ARG_INFO(0, key)
+    ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ idb_functions[]
  */
 static const zend_function_entry idb_functions[] = {
-        PHP_ME(IDB, echo, arginfo_idb_echo, ZEND_ACC_PUBLIC)
-	PHP_FE_END
+    PHP_ME(IDB, __construct, arginfo_idb_construct, ZEND_ACC_PUBLIC)
+    PHP_ME(IDB, get, arginfo_idb_get, ZEND_ACC_PUBLIC)
+    PHP_ME(IDB, set, arginfo_idb_set, ZEND_ACC_PUBLIC)
+    PHP_FE_END
 };
 /* }}} */
+rocksdb::DB* m_rdb;
 
-PHP_METHOD(IDB, echo)
+PHP_METHOD(IDB, __construct)
 {
-    char *var = "World";
-    size_t var_len = sizeof("World") - 1;
+    char *path;
+    size_t path_len;
+    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "s", &path, &path_len) == FAILURE) {
+        return;
+    }
+    rocksdb::Options options;
+    std::string m_last_error;
+    options.create_if_missing = true;
+    rocksdb::Status status = rocksdb::DB::Open(options, path, &m_rdb);
+    if(!status.ok())
+    {
+        m_last_error = status.ToString();
+        char *error = const_cast<char *>(m_last_error.c_str()) ;
+        zend_throw_error(NULL, error);
+    }
+    return;
+}
+
+PHP_METHOD(IDB, set)
+{
+    char *key, *value;
+    size_t key_len, value_len;
+    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "ss", &key, &key_len, &value, &value_len) == FAILURE) {
+        return;
+    }
+    if (m_rdb == NULL)
+    {
+        zend_throw_error(NULL, "un initial error");
+    }
+    rocksdb::Status status = m_rdb->Put(rocksdb::WriteOptions(), key, value);
+    if(!status.ok())
+    {
+        std::string m_last_error = status.ToString();
+        char *error = const_cast<char *>(m_last_error.c_str()) ;
+        zend_throw_error(NULL, error);
+    }
+    return;
+}
+
+PHP_METHOD(IDB, get)
+{
+    char *key;
+    size_t key_len;
+    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "s", &key, &key_len) == FAILURE) {
+        return;
+    }
+    if (m_rdb == NULL)
+    {
+        zend_throw_error(NULL, "un initial error");
+    }
+    std::string value;
+    rocksdb::Status status = m_rdb->Get(rocksdb::ReadOptions(), key, &value);
     zend_string *retval;
-    ZEND_PARSE_PARAMETERS_START(0, 1)
-    Z_PARAM_OPTIONAL
-    Z_PARAM_STRING(var, var_len)
-    ZEND_PARSE_PARAMETERS_END();
-    retval = strpprintf(0, "Hello %s", var);
+    char *var = const_cast<char *>(value.c_str()) ;
+    retval = strpprintf(0, "%s", var);
     RETURN_STR(retval);
 }
 

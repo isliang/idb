@@ -5,7 +5,9 @@
 
 extern zend_module_entry idb_module_entry;
 # define phpext_idb_ptr &idb_module_entry
-PHP_METHOD(IDB, echo);
+PHP_METHOD(IDB, __construct);
+PHP_METHOD(IDB, set);
+PHP_METHOD(IDB, get);
 # define PHP_IDB_VERSION "0.1.0"
 
 # if defined(ZTS) && defined(COMPILE_DL_IDB)

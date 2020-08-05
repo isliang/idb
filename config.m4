@@ -77,15 +77,15 @@ if test "$PHP_IDB" != "no"; then
   dnl or version-dependent feature) and you are not using pkg-config:
   dnl PHP_CHECK_LIBRARY($LIBNAME, $LIBSYMBOL,
   dnl [
-  dnl   PHP_ADD_LIBRARY_WITH_PATH($LIBNAME, $IDB_DIR/$PHP_LIBDIR, IDB_SHARED_LIBADD)
-  dnl   AC_DEFINE(HAVE_IDB_FEATURE, 1, [ ])
+     PHP_ADD_LIBRARY_WITH_PATH(rocksdb, /usr/local/lib, IDB_SHARED_LIBADD)
+     AC_DEFINE(HAVE_IDB_FEATURE, 1, [ ])
   dnl ],[
   dnl   AC_MSG_ERROR([FEATURE not supported by your idb library.])
   dnl ],[
   dnl   -L$IDB_DIR/$PHP_LIBDIR -lm
   dnl ])
   dnl
-  dnl PHP_SUBST(IDB_SHARED_LIBADD)
+   PHP_SUBST(IDB_SHARED_LIBADD)
 
   dnl In case of no dependencies
   AC_DEFINE(HAVE_IDB, 1, [ Have idb support ])
