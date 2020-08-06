@@ -56,6 +56,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_idb_set, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_idb_void, 0)
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ idb_functions[]
@@ -64,6 +67,7 @@ static const zend_function_entry idb_functions[] = {
     PHP_ME(IDB, __construct, arginfo_idb_construct, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, get, arginfo_idb_get, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, set, arginfo_idb_set, ZEND_ACC_PUBLIC)
+    PHP_ME(IDB, __destruct, arginfo_idb_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 /* }}} */
@@ -127,6 +131,12 @@ PHP_METHOD(IDB, get)
     char *var = const_cast<char *>(value.c_str()) ;
     retval = strpprintf(0, "%s", var);
     RETURN_STR(retval);
+}
+
+PHP_METHOD(IDB, __destruct)
+{
+    delete m_rdb;
+    return;
 }
 
 zend_class_entry *idb_ce;
