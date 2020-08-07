@@ -52,9 +52,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_idb_get, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_idb_set, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_idb_put, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_idb_open, 0, 0, 1)
+    ZEND_ARG_INFO(0, readonly)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_idb_void, 0)
@@ -66,43 +70,65 @@ ZEND_END_ARG_INFO()
 static const zend_function_entry idb_functions[] = {
     PHP_ME(IDB, __construct, arginfo_idb_construct, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, get, arginfo_idb_get, ZEND_ACC_PUBLIC)
-    PHP_ME(IDB, set, arginfo_idb_set, ZEND_ACC_PUBLIC)
+    PHP_ME(IDB, put, arginfo_idb_put, ZEND_ACC_PUBLIC)
+    PHP_ME(IDB, open, arginfo_idb_open, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, __destruct, arginfo_idb_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 /* }}} */
 rocksdb::DB* m_rdb;
+char *rdb_path;
+zend_bool is_open = false;
 
 PHP_METHOD(IDB, __construct)
 {
-    char *path;
     size_t path_len;
-    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "s", &path, &path_len) == FAILURE) {
+    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "s", &rdb_path, &path_len) == FAILURE) {
         return;
     }
+    return;
+}
+
+PHP_METHOD(IDB, open)
+{
+    zend_bool readonly = false;
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(readonly)
+    ZEND_PARSE_PARAMETERS_END();
+
     rocksdb::Options options;
     std::string m_last_error;
     options.create_if_missing = true;
-    rocksdb::Status status = rocksdb::DB::Open(options, path, &m_rdb);
+    rocksdb::Status status;
+    if (readonly)
+    {
+        status = rocksdb::DB::OpenForReadOnly(options, rdb_path, &m_rdb);
+    } else {
+        status = rocksdb::DB::Open(options, rdb_path, &m_rdb);
+    }
     if(!status.ok())
     {
         m_last_error = status.ToString();
         char *error = const_cast<char *>(m_last_error.c_str()) ;
         zend_throw_error(NULL, error);
+        return;
     }
+    is_open = true;
     return;
 }
 
-PHP_METHOD(IDB, set)
+PHP_METHOD(IDB, put)
 {
     char *key, *value;
     size_t key_len, value_len;
     if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "ss", &key, &key_len, &value, &value_len) == FAILURE) {
         return;
     }
-    if (m_rdb == NULL)
+    if (!is_open)
     {
         zend_throw_error(NULL, "un initial error");
+        return;
     }
     rocksdb::Status status = m_rdb->Put(rocksdb::WriteOptions(), key, value);
     if(!status.ok())
@@ -110,6 +136,7 @@ PHP_METHOD(IDB, set)
         std::string m_last_error = status.ToString();
         char *error = const_cast<char *>(m_last_error.c_str()) ;
         zend_throw_error(NULL, error);
+        return;
     }
     return;
 }
@@ -121,9 +148,10 @@ PHP_METHOD(IDB, get)
     if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "s", &key, &key_len) == FAILURE) {
         return;
     }
-    if (m_rdb == NULL)
+    if (!is_open)
     {
         zend_throw_error(NULL, "un initial error");
+        return;
     }
     std::string value;
     rocksdb::Status status = m_rdb->Get(rocksdb::ReadOptions(), key, &value);
@@ -136,6 +164,7 @@ PHP_METHOD(IDB, get)
 PHP_METHOD(IDB, __destruct)
 {
     delete m_rdb;
+    is_open = false;
     return;
 }
 
