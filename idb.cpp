@@ -115,7 +115,7 @@ PHP_METHOD(IDB, open)
         return;
     }
     is_open = true;
-    return;
+    RETURN_TRUE;
 }
 
 PHP_METHOD(IDB, put)
@@ -138,7 +138,7 @@ PHP_METHOD(IDB, put)
         zend_throw_error(NULL, error);
         return;
     }
-    return;
+    RETURN_TRUE;
 }
 
 PHP_METHOD(IDB, get)
