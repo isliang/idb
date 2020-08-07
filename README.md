@@ -7,13 +7,25 @@ This is a php extension for [rocksdb](https://github.com/facebook/rocksdb)
 try {
     $idb = new IDB("/path/to/rocksdb");
     //open rocksdb
-    $idb->open();
+    if (!$idb->open()) {
+        echo $idb->lastError();
+        return;
+    }
     //$idb->open(true); //open rocksdb readonly
     //put the value of key "hello" to "world"
-    echo $idb->put("hello", "world");
+    if(!$idb->put("hello", "world")) {
+        echo $idb->lastError();
+        return;        
+    }
     //get the value of key "hello"
-    echo $idb->get("hello");
-} catch(Exception $e) {
-    return false;
+    $value = $idb->get("hello");
+    if ($value === false) {
+        echo $idb->lastError();
+        return;    
+    } else {
+        echo $value;
+    }
+} catch(\Throwable $e) {
+    echo $e->getMessage();
 } 
 ```
