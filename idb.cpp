@@ -21,7 +21,7 @@ extern "C" {
 
 
 /* {{{ PHP_RINIT_FUNCTION
- */
+ *  */
 PHP_RINIT_FUNCTION(idb)
 {
 #if defined(ZTS) && defined(COMPILE_DL_IDB)
@@ -33,7 +33,7 @@ PHP_RINIT_FUNCTION(idb)
 /* }}} */
 
 /* {{{ PHP_MINFO_FUNCTION
- */
+ *  */
 PHP_MINFO_FUNCTION(idb)
 {
 	php_info_print_table_start();
@@ -43,7 +43,7 @@ PHP_MINFO_FUNCTION(idb)
 /* }}} */
 
 /* {{{ arginfo
- */
+ *  */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_idb_construct, 0, 0, 1)
  ZEND_ARG_INFO(0, path)
 ZEND_END_ARG_INFO()
@@ -66,12 +66,13 @@ ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ idb_functions[]
- */
+ *  */
 static const zend_function_entry idb_functions[] = {
     PHP_ME(IDB, __construct, arginfo_idb_construct, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, get, arginfo_idb_get, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, put, arginfo_idb_put, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, open, arginfo_idb_open, ZEND_ACC_PUBLIC)
+    PHP_ME(IDB, lastError, arginfo_idb_void, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, __destruct, arginfo_idb_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -79,6 +80,9 @@ static const zend_function_entry idb_functions[] = {
 rocksdb::DB* m_rdb;
 char *rdb_path;
 zend_bool is_open = false;
+zend_string *retval;
+void handleError(rocksdb::Status status);
+void handleRocksDBNotOpen(void);
 
 PHP_METHOD(IDB, __construct)
 {
@@ -109,10 +113,8 @@ PHP_METHOD(IDB, open)
     }
     if(!status.ok())
     {
-        m_last_error = status.ToString();
-        char *error = const_cast<char *>(m_last_error.c_str()) ;
-        zend_throw_error(NULL, error);
-        return;
+        handleError(status);
+        RETURN_FALSE;
     }
     is_open = true;
     RETURN_TRUE;
@@ -127,16 +129,14 @@ PHP_METHOD(IDB, put)
     }
     if (!is_open)
     {
-        zend_throw_error(NULL, "un initial error");
-        return;
+        handleRocksDBNotOpen();
+        RETURN_FALSE;
     }
     rocksdb::Status status = m_rdb->Put(rocksdb::WriteOptions(), key, value);
     if(!status.ok())
     {
-        std::string m_last_error = status.ToString();
-        char *error = const_cast<char *>(m_last_error.c_str()) ;
-        zend_throw_error(NULL, error);
-        return;
+        handleError(status);
+        RETURN_FALSE;
     }
     RETURN_TRUE;
 }
@@ -150,14 +150,36 @@ PHP_METHOD(IDB, get)
     }
     if (!is_open)
     {
-        zend_throw_error(NULL, "un initial error");
-        return;
+        handleRocksDBNotOpen();
+        RETURN_FALSE;
     }
     std::string value;
     rocksdb::Status status = m_rdb->Get(rocksdb::ReadOptions(), key, &value);
+    if(!status.ok())
+    {
+        handleError(status);
+        RETURN_FALSE;
+    }
     zend_string *retval;
     char *var = const_cast<char *>(value.c_str()) ;
     retval = strpprintf(0, "%s", var);
+    RETURN_STR(retval);
+}
+
+void handleError(rocksdb::Status status)
+{
+    std::string m_last_error = status.ToString();
+    char *error = const_cast<char *>(m_last_error.c_str()) ;
+    retval = strpprintf(0, "%s", error);
+}
+
+void handleRocksDBNotOpen(void)
+{
+    retval = strpprintf(0, "%s", "rocks db not open");
+}
+
+PHP_METHOD(IDB, lastError)
+{
     RETURN_STR(retval);
 }
 
@@ -185,7 +207,7 @@ PHP_MINIT_FUNCTION(idb)
 
 
 /* {{{ idb_module_entry
- */
+ *  */
 zend_module_entry idb_module_entry = {
 	STANDARD_MODULE_HEADER,
 	"idb",					/* Extension name */
