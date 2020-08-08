@@ -10,7 +10,7 @@ extern "C" {
 #include "php_idb.h"
 }
 
-#include <rocksdb/db.h>
+#include <rocksdb.h>
 
 /* For compatibility with older PHP versions */
 #ifndef ZEND_PARSE_PARAMETERS_NONE
@@ -78,18 +78,75 @@ static const zend_function_entry idb_functions[] = {
 };
 /* }}} */
 rocksdb::DB* m_rdb;
-char *rdb_path;
-zend_bool is_open = false;
-zend_string *error;
-void handleError(rocksdb::Status status);
-void handleRocksDBNotOpen(void);
-
+void RocksDB::setPath(char *_path)
+{
+    path = _path;
+}
+zend_string* RocksDB::lastError(void)
+{
+    char *last_error = const_cast<char *>(m_last_error.c_str()) ;
+    zend_string *error = strpprintf(0, "%s", last_error);
+    return error;
+}
+zend_bool RocksDB::open(zend_bool readonly, rocksdb::Options options)
+{
+    if (readonly)
+    {
+        status = rocksdb::DB::OpenForReadOnly(options, path, &m_rdb);
+    } else {
+        status = rocksdb::DB::Open(options, path, &m_rdb);
+    }
+    if(!status.ok())
+    {
+        m_last_error = status.ToString();
+        return false;
+    }
+    is_open = true;
+    return true;
+}
+zend_bool RocksDB::put(char *key, char *value)
+{
+    if (!is_open)
+    {
+        m_last_error = "rocks db not open";
+        return false;
+    }
+    status = m_rdb->Put(rocksdb::WriteOptions(), key, value);
+    if(!status.ok())
+    {
+        m_last_error = status.ToString();
+        return false;
+    }
+    return true;
+}
+ValueData RocksDB::get(char *key)
+{
+    if (!is_open)
+    {
+        m_last_error = "rocks db not open";
+        ValueData result = {false, ""};
+        return result;
+    }
+    std::string value;
+    rocksdb::Status status = m_rdb->Get(rocksdb::ReadOptions(), key, &value);
+    if(!status.ok())
+    {
+        m_last_error = status.ToString();
+        ValueData result = {false, ""};
+        return result;
+    }
+    ValueData result = {true, value};
+    return result;
+}
+RocksDB rocksDb;
 PHP_METHOD(IDB, __construct)
 {
+    char *path;
     size_t path_len;
-    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "s", &rdb_path, &path_len) == FAILURE) {
+    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "s", &path, &path_len) == FAILURE) {
         return;
     }
+    rocksDb.setPath(path);
     return;
 }
 
@@ -102,21 +159,12 @@ PHP_METHOD(IDB, open)
     ZEND_PARSE_PARAMETERS_END();
 
     rocksdb::Options options;
-    std::string m_last_error;
     options.create_if_missing = true;
-    rocksdb::Status status;
-    if (readonly)
+    zend_bool is_success = rocksDb.open(readonly, options);
+    if(!is_success)
     {
-        status = rocksdb::DB::OpenForReadOnly(options, rdb_path, &m_rdb);
-    } else {
-        status = rocksdb::DB::Open(options, rdb_path, &m_rdb);
-    }
-    if(!status.ok())
-    {
-        handleError(status);
         RETURN_FALSE;
     }
-    is_open = true;
     RETURN_TRUE;
 }
 
@@ -127,15 +175,9 @@ PHP_METHOD(IDB, put)
     if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "ss", &key, &key_len, &value, &value_len) == FAILURE) {
         return;
     }
-    if (!is_open)
+    zend_bool is_success = rocksDb.put(key, value);
+    if(!is_success)
     {
-        handleRocksDBNotOpen();
-        RETURN_FALSE;
-    }
-    rocksdb::Status status = m_rdb->Put(rocksdb::WriteOptions(), key, value);
-    if(!status.ok())
-    {
-        handleError(status);
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -148,38 +190,20 @@ PHP_METHOD(IDB, get)
     if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "s", &key, &key_len) == FAILURE) {
         return;
     }
-    if (!is_open)
+    ValueData valueData = rocksDb.get(key);
+    if (!valueData.is_success)
     {
-        handleRocksDBNotOpen();
-        RETURN_FALSE;
-    }
-    std::string value;
-    rocksdb::Status status = m_rdb->Get(rocksdb::ReadOptions(), key, &value);
-    if(!status.ok())
-    {
-        handleError(status);
         RETURN_FALSE;
     }
     zend_string *retval;
-    char *var = const_cast<char *>(value.c_str()) ;
+    char *var = const_cast<char *>(valueData.value.c_str()) ;
     retval = strpprintf(0, "%s", var);
     RETURN_STR(retval);
 }
 
-void handleError(rocksdb::Status status)
-{
-    std::string m_last_error = status.ToString();
-    char *last_error = const_cast<char *>(m_last_error.c_str()) ;
-    error = strpprintf(0, "%s", last_error);
-}
-
-void handleRocksDBNotOpen(void)
-{
-    error = strpprintf(0, "%s", "rocks db not open");
-}
-
 PHP_METHOD(IDB, lastError)
 {
+    zend_string *error = rocksDb.lastError();
     RETURN_STR(error);
 }
 
