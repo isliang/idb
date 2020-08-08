@@ -13,6 +13,7 @@ struct ValueData {
 class RocksDB
 {
 private:
+    DB* m_rdb;
     Status status;
     zend_bool is_open = false;
     string m_last_error;
@@ -23,5 +24,6 @@ public:
     ValueData get(char *key);
     zend_string* lastError(void);
     void setPath(char *_path);
+    void close(void);
 };
 #endif //IDB_ROCKSDB_H

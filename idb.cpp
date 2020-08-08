@@ -77,7 +77,6 @@ static const zend_function_entry idb_functions[] = {
     PHP_FE_END
 };
 /* }}} */
-DB* m_rdb;
 void RocksDB::setPath(char *_path)
 {
     path = _path;
@@ -137,6 +136,10 @@ ValueData RocksDB::get(char *key)
     }
     ValueData result = {true, value};
     return result;
+}
+void RocksDB::close(void)
+{
+    delete m_rdb;
 }
 RocksDB rocksDb;
 PHP_METHOD(IDB, __construct)
@@ -209,7 +212,7 @@ PHP_METHOD(IDB, lastError)
 
 PHP_METHOD(IDB, __destruct)
 {
-    delete m_rdb;
+    rocksDb.close();
     return;
 }
 
