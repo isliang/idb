@@ -80,7 +80,7 @@ static const zend_function_entry idb_functions[] = {
 rocksdb::DB* m_rdb;
 char *rdb_path;
 zend_bool is_open = false;
-zend_string *retval;
+zend_string *error;
 void handleError(rocksdb::Status status);
 void handleRocksDBNotOpen(void);
 
@@ -169,24 +169,23 @@ PHP_METHOD(IDB, get)
 void handleError(rocksdb::Status status)
 {
     std::string m_last_error = status.ToString();
-    char *error = const_cast<char *>(m_last_error.c_str()) ;
-    retval = strpprintf(0, "%s", error);
+    char *last_error = const_cast<char *>(m_last_error.c_str()) ;
+    error = strpprintf(0, "%s", last_error);
 }
 
 void handleRocksDBNotOpen(void)
 {
-    retval = strpprintf(0, "%s", "rocks db not open");
+    error = strpprintf(0, "%s", "rocks db not open");
 }
 
 PHP_METHOD(IDB, lastError)
 {
-    RETURN_STR(retval);
+    RETURN_STR(error);
 }
 
 PHP_METHOD(IDB, __destruct)
 {
     delete m_rdb;
-    is_open = false;
     return;
 }
 
