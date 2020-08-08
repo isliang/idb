@@ -77,7 +77,7 @@ static const zend_function_entry idb_functions[] = {
     PHP_FE_END
 };
 /* }}} */
-rocksdb::DB* m_rdb;
+DB* m_rdb;
 void RocksDB::setPath(char *_path)
 {
     path = _path;
@@ -88,13 +88,13 @@ zend_string* RocksDB::lastError(void)
     zend_string *error = strpprintf(0, "%s", last_error);
     return error;
 }
-zend_bool RocksDB::open(zend_bool readonly, rocksdb::Options options)
+zend_bool RocksDB::open(zend_bool readonly, Options options)
 {
     if (readonly)
     {
-        status = rocksdb::DB::OpenForReadOnly(options, path, &m_rdb);
+        status = DB::OpenForReadOnly(options, path, &m_rdb);
     } else {
-        status = rocksdb::DB::Open(options, path, &m_rdb);
+        status = DB::Open(options, path, &m_rdb);
     }
     if(!status.ok())
     {
@@ -111,7 +111,7 @@ zend_bool RocksDB::put(char *key, char *value)
         m_last_error = "rocks db not open";
         return false;
     }
-    status = m_rdb->Put(rocksdb::WriteOptions(), key, value);
+    status = m_rdb->Put(WriteOptions(), key, value);
     if(!status.ok())
     {
         m_last_error = status.ToString();
@@ -127,8 +127,8 @@ ValueData RocksDB::get(char *key)
         ValueData result = {false, ""};
         return result;
     }
-    std::string value;
-    rocksdb::Status status = m_rdb->Get(rocksdb::ReadOptions(), key, &value);
+    string value;
+    status = m_rdb->Get(ReadOptions(), key, &value);
     if(!status.ok())
     {
         m_last_error = status.ToString();
@@ -158,7 +158,7 @@ PHP_METHOD(IDB, open)
         Z_PARAM_BOOL(readonly)
     ZEND_PARSE_PARAMETERS_END();
 
-    rocksdb::Options options;
+    Options options;
     options.create_if_missing = true;
     zend_bool is_success = rocksDb.open(readonly, options);
     if(!is_success)
