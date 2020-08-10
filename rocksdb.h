@@ -18,6 +18,7 @@ public:
     zend_bool open(zend_bool readonly, Options options);
     zend_bool put(char *key, char *value);
     zend_bool get(char *key, string* value);
+    vector<zend_bool> mGet(vector<Slice>& keys, vector<string>* values);
     zend_string* lastError(void);
     void setPath(char *_path);
     void close(void);
