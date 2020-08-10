@@ -1,6 +1,7 @@
 #ifndef IDB_ROCKSDB_H
 #define IDB_ROCKSDB_H
 #include <rocksdb/db.h>
+#include <rocksdb/rocksdb_namespace.h>
 
 using namespace ROCKSDB_NAMESPACE;
 using namespace std;
