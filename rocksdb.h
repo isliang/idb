@@ -6,11 +6,6 @@
 using namespace ROCKSDB_NAMESPACE;
 using namespace std;
 
-struct ValueData {
-    zend_bool is_success;
-    string value;
-};
-
 class RocksDB
 {
 private:
@@ -22,7 +17,7 @@ private:
 public:
     zend_bool open(zend_bool readonly, Options options);
     zend_bool put(char *key, char *value);
-    ValueData get(char *key);
+    zend_bool get(char *key, string* value);
     zend_string* lastError(void);
     void setPath(char *_path);
     void close(void);
