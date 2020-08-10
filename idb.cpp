@@ -70,6 +70,7 @@ ZEND_END_ARG_INFO()
 static const zend_function_entry idb_functions[] = {
     PHP_ME(IDB, __construct, arginfo_idb_construct, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, get, arginfo_idb_get, ZEND_ACC_PUBLIC)
+    PHP_ME(IDB, mGet, arginfo_idb_get, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, put, arginfo_idb_put, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, open, arginfo_idb_open, ZEND_ACC_PUBLIC)
     PHP_ME(IDB, lastError, arginfo_idb_void, ZEND_ACC_PUBLIC)
@@ -221,7 +222,36 @@ PHP_METHOD(IDB, get)
     retval = strpprintf(0, "%s", var);
     RETURN_STR(retval);
 }
+PHP_METHOD(IDB, mGet)
+{
+    zval *params, *param;
+    vector<Slice> keys;
+    vector<string> values;
 
+    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "a", &params) == FAILURE) {
+        return;
+    }
+    if (!zend_hash_num_elements(Z_ARRVAL_P(params))) {
+        RETURN_FALSE;
+    }
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(params), param) {
+        keys.push_back(Slice(Z_STRVAL_P(param)));
+    } ZEND_HASH_FOREACH_END();
+
+    vector<zend_bool> is_success = rocksDb.mGet(keys, &values);
+    for (auto s : is_success) {
+        if(!s)
+        {
+            RETURN_FALSE;
+        }
+    }
+    array_init(return_value);
+    char *v;
+    for (auto value : values) {
+        v = const_cast<char *>(value.c_str()) ;
+        add_next_index_string(return_value, v);
+    }
+}
 PHP_METHOD(IDB, lastError)
 {
     zend_string *error = rocksDb.lastError();
