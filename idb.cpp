@@ -133,6 +133,27 @@ zend_bool RocksDB::get(char *key, string* value)
     }
     return true;
 }
+vector<zend_bool> RocksDB::mGet(vector<Slice>& keys, vector<string>* values)
+{
+    vector<zend_bool> is_success;
+    if (!is_open)
+    {
+        m_last_error = "rocks db not open";
+        is_success.push_back(false);
+        return is_success;
+    }
+    vector<Status> status = m_rdb->MultiGet(ReadOptions(), keys, values);
+    for (auto s : status) {
+        if(!s.ok())
+        {
+            m_last_error = s.ToString();
+            is_success.push_back(false);
+        } else {
+            is_success.push_back(true);
+        }
+    }
+    return is_success;
+}
 void RocksDB::close(void)
 {
     delete m_rdb;
