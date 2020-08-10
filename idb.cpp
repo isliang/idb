@@ -118,24 +118,20 @@ zend_bool RocksDB::put(char *key, char *value)
     }
     return true;
 }
-ValueData RocksDB::get(char *key)
+zend_bool RocksDB::get(char *key, string* value)
 {
     if (!is_open)
     {
         m_last_error = "rocks db not open";
-        ValueData result = {false, ""};
-        return result;
+        return false;
     }
-    string value;
-    status = m_rdb->Get(ReadOptions(), key, &value);
+    status = m_rdb->Get(ReadOptions(), key, value);
     if(!status.ok())
     {
         m_last_error = status.ToString();
-        ValueData result = {false, ""};
-        return result;
+        return false;
     }
-    ValueData result = {true, value};
-    return result;
+    return true;
 }
 void RocksDB::close(void)
 {
@@ -193,13 +189,14 @@ PHP_METHOD(IDB, get)
     if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "s", &key, &key_len) == FAILURE) {
         return;
     }
-    ValueData valueData = rocksDb.get(key);
-    if (!valueData.is_success)
+    string value;
+    zend_bool is_success = rocksDb.get(key, &value);
+    if (!is_success)
     {
         RETURN_FALSE;
     }
     zend_string *retval;
-    char *var = const_cast<char *>(valueData.value.c_str()) ;
+    char *var = const_cast<char *>(value.c_str()) ;
     retval = strpprintf(0, "%s", var);
     RETURN_STR(retval);
 }
