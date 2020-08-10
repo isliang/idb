@@ -9,6 +9,7 @@ PHP_METHOD(IDB, __construct);
 PHP_METHOD(IDB, open);
 PHP_METHOD(IDB, put);
 PHP_METHOD(IDB, get);
+PHP_METHOD(IDB, mGet);
 PHP_METHOD(IDB, lastError);
 PHP_METHOD(IDB,  __destruct);
 # define PHP_IDB_VERSION "0.1.0"
