@@ -134,26 +134,36 @@ zend_bool RocksDB::get(char *key, string* value)
     }
     return true;
 }
-vector<zend_bool> RocksDB::mGet(vector<Slice>& keys, vector<string>* values)
+zend_bool RocksDB::mGet(vector<Slice>& keys, vector<zval *>* _values)
 {
-    vector<zend_bool> is_success;
     if (!is_open)
     {
         m_last_error = "rocks db not open";
-        is_success.push_back(false);
-        return is_success;
+        return false;
     }
-    vector<Status> status = m_rdb->MultiGet(ReadOptions(), keys, values);
+    vector<string> values;
+    vector<Status> status = m_rdb->MultiGet(ReadOptions(), keys, &values);
+    int i = 0;
+    char *v, *error;
     for (auto s : status) {
-        if(!s.ok())
-        {
-            m_last_error = s.ToString();
-            is_success.push_back(false);
+        zval *value;
+        value = (zval *)emalloc(sizeof(zval));
+        array_init(value);
+        v = const_cast<char *>(values[i].c_str());
+        add_assoc_string(value, "key", keys[i].data());
+        add_assoc_string(value, "value", v);
+        if(!s.ok()) {
+            add_assoc_long(value, "code", 0);
+            error = const_cast<char *>(s.ToString().c_str()) ;
+            add_assoc_string(value, "error", error);
         } else {
-            is_success.push_back(true);
+            add_assoc_long(value, "code", 1);
+            add_assoc_null(value, "error");
         }
+        _values->push_back(value);
+        i++;
     }
-    return is_success;
+    return true;
 }
 void RocksDB::close(void)
 {
@@ -226,7 +236,7 @@ PHP_METHOD(IDB, mGet)
 {
     zval *params, *param;
     vector<Slice> keys;
-    vector<string> values;
+    vector<zval *> values;
 
     if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "a", &params) == FAILURE) {
         return;
@@ -235,21 +245,19 @@ PHP_METHOD(IDB, mGet)
         RETURN_FALSE;
     }
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(params), param) {
-        keys.push_back(Slice(Z_STRVAL_P(param)));
+        if (IS_STRING == Z_TYPE_P(param)) {
+            keys.push_back(Slice(Z_STRVAL_P(param)));
+        }
     } ZEND_HASH_FOREACH_END();
 
-    vector<zend_bool> is_success = rocksDb.mGet(keys, &values);
-    for (auto s : is_success) {
-        if(!s)
-        {
-            RETURN_FALSE;
-        }
+    zend_bool is_success = rocksDb.mGet(keys, &values);
+    if(!is_success)
+    {
+        RETURN_FALSE;
     }
     array_init(return_value);
-    char *v;
     for (auto value : values) {
-        v = const_cast<char *>(value.c_str()) ;
-        add_next_index_string(return_value, v);
+        add_next_index_zval(return_value, value);
     }
 }
 PHP_METHOD(IDB, lastError)
