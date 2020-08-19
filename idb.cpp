@@ -90,11 +90,22 @@ zend_string* RocksDB::lastError(void)
 }
 zend_bool RocksDB::open(zend_bool readonly, Options options)
 {
+    status = DB::ListColumnFamilies(options, path, &column_families);
+    if(!status.ok())
+    {
+        m_last_error = status.ToString();
+        return false;
+    }
+    vector<ColumnFamilyDescriptor> _column_families;
+    for (auto column_family : column_families) {
+        _column_families.push_back(ColumnFamilyDescriptor(
+                column_family, ColumnFamilyOptions()));
+    }
     if (readonly)
     {
-        status = DB::OpenForReadOnly(options, path, &m_rdb);
+        status = DB::OpenForReadOnly(options, path, _column_families, &handles, &m_rdb);
     } else {
-        status = DB::Open(options, path, &m_rdb);
+        status = DB::Open(options, path, _column_families, &handles, &m_rdb);
     }
     if(!status.ok())
     {
@@ -119,6 +130,26 @@ zend_bool RocksDB::put(char *key, char *value)
     }
     return true;
 }
+zend_bool RocksDB::put(string column_family, char *key, char *value)
+{
+    if (!is_open)
+    {
+        m_last_error = "rocks db not open";
+        return false;
+    }
+    //is column already exist
+    int i = handleIndex(column_family);
+    if (i < 0) {
+        return false;
+    }
+    status = m_rdb->Put(WriteOptions(), handles[i], key, value);
+    if(!status.ok())
+    {
+        m_last_error = status.ToString();
+        return false;
+    }
+    return true;
+}
 zend_bool RocksDB::get(char *key, string* value)
 {
     if (!is_open)
@@ -133,6 +164,48 @@ zend_bool RocksDB::get(char *key, string* value)
         return false;
     }
     return true;
+}
+zend_bool RocksDB::get(string column_family, char *key, string* value)
+{
+    if (!is_open)
+    {
+        m_last_error = "rocks db not open";
+        return false;
+    }
+    //is column already exist
+    int i = handleIndex(column_family);
+    if (i < 0) {
+        return false;
+    }
+    status = m_rdb->Get(ReadOptions(), handles[i], key, value);
+    if(!status.ok())
+    {
+        m_last_error = status.ToString();
+        return false;
+    }
+    return true;
+}
+int RocksDB::handleIndex(string column_family)
+{
+    int i;
+    for(i = 0; i < column_families.size(); i++) {
+        if (column_families[i] == column_family) {
+            break;
+        }
+    }
+    //not exist, create
+    if (i >= column_families.size()) {
+        column_families.push_back(column_family);
+        ColumnFamilyHandle *handle;
+        status = m_rdb->CreateColumnFamily(ColumnFamilyOptions(), column_family, &handle);
+        if(!status.ok())
+        {
+            m_last_error = status.ToString();
+            return -1;
+        }
+        handles.push_back(handle);
+    }
+    return i;
 }
 zend_bool RocksDB::mGet(vector<Slice>& keys, vector<zval *>* _values)
 {
