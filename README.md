@@ -11,9 +11,13 @@ try {
         echo $idb->lastError();
         return;
     }
-    //$idb->open(true); //open rocksdb readonly
+    //$idb->open($readonly=true); //open rocksdb readonly
     //put the value of key "hello" to "world"
     if(!$idb->put("hello", "world")) {
+        echo $idb->lastError();
+        return;        
+    }
+    if(!$idb->put("welcome", "idb")) {
         echo $idb->lastError();
         return;        
     }
@@ -24,6 +28,13 @@ try {
         return;    
     } else {
         echo $value;
+    }
+    $value = $idb->mGet(["hello", "welcome"]);
+    if ($value === false) {
+        echo $idb->lastError();
+        return;    
+    } else {
+        print_r($value);
     }
 } catch(\Throwable $e) {
     echo $e->getMessage();
