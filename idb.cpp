@@ -274,12 +274,21 @@ PHP_METHOD(IDB, open)
 
 PHP_METHOD(IDB, put)
 {
-    char *key, *value;
-    size_t key_len, value_len;
-    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "ss", &key, &key_len, &value, &value_len) == FAILURE) {
-        return;
+    char *key, *value, *column;
+    size_t key_len, value_len, column_len;
+    ZEND_PARSE_PARAMETERS_START(2, 3)
+        Z_PARAM_PATH(key, key_len)
+        Z_PARAM_PATH(value, value_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_PATH(column, column_len)
+    ZEND_PARSE_PARAMETERS_END();
+    zend_bool is_success;
+    if (column_len > 0) {
+        string column_family = column;
+        is_success = rocksDb.put(column_family, key, value);
+    } else {
+        is_success = rocksDb.put(key, value);
     }
-    zend_bool is_success = rocksDb.put(key, value);
     if(!is_success)
     {
         RETURN_FALSE;
@@ -289,13 +298,22 @@ PHP_METHOD(IDB, put)
 
 PHP_METHOD(IDB, get)
 {
-    char *key;
-    size_t key_len;
-    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "s", &key, &key_len) == FAILURE) {
-        return;
-    }
+    char *key, *column;
+    size_t key_len, column_len;
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_PATH(key, key_len)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_PATH(column, column_len)
+    ZEND_PARSE_PARAMETERS_END();
     string value;
-    zend_bool is_success = rocksDb.get(key, &value);
+    zend_bool is_success;
+    if (column_len > 0) {
+        string column_family = column;
+        is_success = rocksDb.get(column_family, key, &value);
+    } else {
+        is_success = rocksDb.get(key, &value);
+    }
+
     if (!is_success)
     {
         RETURN_FALSE;
