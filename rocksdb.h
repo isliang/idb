@@ -23,6 +23,7 @@ public:
     zend_bool get(char *key, string* value);
     zend_bool get(string column_family, char *key, string* value);
     zend_bool mGet(vector<Slice>& keys, vector<zval *>* values);
+    zend_bool mGet(vector<string>& column_families, vector<Slice>& keys, vector<zval *>* values);
     zend_string* lastError(void);
     void setPath(char *_path);
     void close(void);

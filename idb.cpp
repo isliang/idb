@@ -117,18 +117,7 @@ zend_bool RocksDB::open(zend_bool readonly, Options options)
 }
 zend_bool RocksDB::put(char *key, char *value)
 {
-    if (!is_open)
-    {
-        m_last_error = "rocks db not open";
-        return false;
-    }
-    status = m_rdb->Put(WriteOptions(), key, value);
-    if(!status.ok())
-    {
-        m_last_error = status.ToString();
-        return false;
-    }
-    return true;
+    return put(kDefaultColumnFamilyName, key, value);
 }
 zend_bool RocksDB::put(string column_family, char *key, char *value)
 {
@@ -152,18 +141,7 @@ zend_bool RocksDB::put(string column_family, char *key, char *value)
 }
 zend_bool RocksDB::get(char *key, string* value)
 {
-    if (!is_open)
-    {
-        m_last_error = "rocks db not open";
-        return false;
-    }
-    status = m_rdb->Get(ReadOptions(), key, value);
-    if(!status.ok())
-    {
-        m_last_error = status.ToString();
-        return false;
-    }
-    return true;
+    return get(kDefaultColumnFamilyName, key, value);
 }
 zend_bool RocksDB::get(string column_family, char *key, string* value)
 {
@@ -209,21 +187,43 @@ int RocksDB::handleIndex(string column_family)
 }
 zend_bool RocksDB::mGet(vector<Slice>& keys, vector<zval *>* _values)
 {
+    vector<string> _column_families;
+    for(auto key : keys) {
+        _column_families.push_back(kDefaultColumnFamilyName);
+    }
+    return mGet(_column_families, keys, _values);
+}
+zend_bool RocksDB::mGet(vector<string>& _column_families, vector<Slice>& keys, vector<zval *>* _values)
+{
     if (!is_open)
     {
         m_last_error = "rocks db not open";
         return false;
     }
+    if (_column_families.size() != keys.size()) {
+        m_last_error = "the size of column families and keys not match";
+        return false;
+    }
     vector<string> values;
-    vector<Status> status = m_rdb->MultiGet(ReadOptions(), keys, &values);
-    int i = 0;
+    vector<ColumnFamilyHandle*> _handles;
+    int i;
+    for (auto column_family : _column_families) {
+        i = handleIndex(column_family);
+        if (i < 0) {
+            return false;
+        }
+        _handles.push_back(handles[i]);
+    }
+    vector<Status> status = m_rdb->MultiGet(ReadOptions(), _handles, keys, &values);
     char *v, *error;
+    i = 0;
     for (auto s : status) {
         zval *value;
         value = (zval *)emalloc(sizeof(zval));
         array_init(value);
-        v = const_cast<char *>(values[i].c_str());
         add_assoc_string(value, "key", keys[i].data());
+        add_assoc_string(value, "column", _column_families[i].data());
+        v = const_cast<char *>(values[i].c_str());
         add_assoc_string(value, "value", v);
         if(!s.ok()) {
             add_assoc_long(value, "code", 0);
@@ -325,13 +325,17 @@ PHP_METHOD(IDB, get)
 }
 PHP_METHOD(IDB, mGet)
 {
-    zval *params, *param;
+    zval *params, *param, *columns, *column;
     vector<Slice> keys;
     vector<zval *> values;
+    vector<string> column_families;
 
-    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "a", &params) == FAILURE) {
-        return;
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_ARRAY(params)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY(columns)
+    ZEND_PARSE_PARAMETERS_END();
+
     if (!zend_hash_num_elements(Z_ARRVAL_P(params))) {
         RETURN_FALSE;
     }
@@ -341,7 +345,17 @@ PHP_METHOD(IDB, mGet)
         }
     } ZEND_HASH_FOREACH_END();
 
-    zend_bool is_success = rocksDb.mGet(keys, &values);
+    zend_bool is_success;
+    if (ZEND_NUM_ARGS() == 2 && zend_hash_num_elements(Z_ARRVAL_P(columns))) {
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(columns), column) {
+            if (IS_STRING == Z_TYPE_P(column)) {
+                column_families.push_back(Z_STRVAL_P(column));
+            }
+        } ZEND_HASH_FOREACH_END();
+        is_success = rocksDb.mGet(column_families, keys, &values);
+    } else {
+        is_success = rocksDb.mGet(keys, &values);
+    }
     if(!is_success)
     {
         RETURN_FALSE;
