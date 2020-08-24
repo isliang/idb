@@ -382,7 +382,7 @@ zend_class_entry *rocksdb_ce;
 void rocksdb_init(void)
 {
     zend_class_entry ce;
-    INIT_CLASS_ENTRY(ce, "RocksDB", rocksdb_functions);
+    INIT_CLASS_ENTRY(ce, ROCKSDB_NS_NAME(RocksDB), rocksdb_functions);
     rocksdb_ce = zend_register_internal_class(&ce);
 }
 

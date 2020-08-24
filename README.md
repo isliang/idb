@@ -4,6 +4,8 @@ This is a php extension for [rocksdb](https://github.com/facebook/rocksdb)
 ## Simple Example
 
 ```php
+use \RocksDB\RocksDB;
+
 try {
     $db = new RocksDB("/path/to/rocksdb");
     //open rocksdb

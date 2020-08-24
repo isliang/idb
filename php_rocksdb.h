@@ -5,6 +5,8 @@
 
 extern zend_module_entry rocksdb_module_entry;
 # define phpext_rocksdb_ptr &rocksdb_module_entry
+#define ROCKSDB_NS "RocksDB"
+#define ROCKSDB_NS_NAME(name) ROCKSDB_NS"\\"#name
 PHP_METHOD(RocksDB, __construct);
 PHP_METHOD(RocksDB, open);
 PHP_METHOD(RocksDB, put);
