@@ -5,33 +5,33 @@ This is a php extension for [rocksdb](https://github.com/facebook/rocksdb)
 
 ```php
 try {
-    $idb = new IDB("/path/to/rocksdb");
+    $db = new RocksDB("/path/to/rocksdb");
     //open rocksdb
-    if (!$idb->open()) {
-        echo $idb->lastError();
+    if (!$db->open()) {
+        echo $db->lastError();
         return;
     }
-    //$idb->open($readonly=true); //open rocksdb readonly
+    //$db->open($readonly=true); //open rocksdb readonly
     //put the value of key "hello" to "world"
-    if(!$idb->put("hello", "world")) {
-        echo $idb->lastError();
+    if(!$db->put("hello", "world")) {
+        echo $db->lastError();
         return;        
     }
-    if(!$idb->put("welcome", "idb")) {
-        echo $idb->lastError();
+    if(!$db->put("welcome", "db")) {
+        echo $db->lastError();
         return;        
     }
     //get the value of key "hello"
-    $value = $idb->get("hello");
+    $value = $db->get("hello");
     if ($value === false) {
-        echo $idb->lastError();
+        echo $db->lastError();
         return;    
     } else {
         echo $value;
     }
-    $value = $idb->mGet(["hello", "welcome"]);
+    $value = $db->mGet(["hello", "welcome"]);
     if ($value === false) {
-        echo $idb->lastError();
+        echo $db->lastError();
         return;    
     } else {
         print_r($value);

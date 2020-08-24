@@ -1,5 +1,5 @@
-#ifndef IDB_ROCKSDB_H
-#define IDB_ROCKSDB_H
+#ifndef ROCKSDB_ROCKSDB_H
+#define ROCKSDB_ROCKSDB_H
 #include <rocksdb/db.h>
 
 using namespace rocksdb;
@@ -28,4 +28,4 @@ public:
     void setPath(char *_path);
     void close(void);
 };
-#endif //IDB_ROCKSDB_H
+#endif //ROCKSDB_ROCKSDB_H

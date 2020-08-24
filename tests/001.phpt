@@ -1,14 +1,14 @@
 --TEST--
-Check if idb is loaded
+Check if rocksdb is loaded
 --SKIPIF--
 <?php
-if (!extension_loaded('idb')) {
+if (!extension_loaded('rocksdb')) {
 	echo 'skip';
 }
 ?>
 --FILE--
 <?php
-echo 'The extension "idb" is available';
+echo 'The extension "rocksdb" is available';
 ?>
 --EXPECT--
-The extension "idb" is available
+The extension "rocksdb" is available
