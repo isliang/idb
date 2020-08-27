@@ -9,8 +9,7 @@ class RocksDB
 {
 private:
     DB* m_rdb;
-    Status status;
-    zend_bool is_open = false;
+    bool is_open = false;
     string m_last_error;
     char *path;
     vector<string> column_families;
@@ -24,7 +23,7 @@ public:
     zend_bool get(string column_family, char *key, string* value);
     zend_bool mGet(vector<Slice>& keys, vector<zval *>* values);
     zend_bool mGet(vector<string>& column_families, vector<Slice>& keys, vector<zval *>* values);
-    zend_string* lastError(void);
+    char* lastError(void);
     void setPath(char *_path);
     void close(void);
 };

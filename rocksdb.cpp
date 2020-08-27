@@ -82,15 +82,14 @@ void RocksDB::setPath(char *_path)
 {
     path = _path;
 }
-zend_string* RocksDB::lastError(void)
+char* RocksDB::lastError(void)
 {
     char *last_error = const_cast<char *>(m_last_error.c_str()) ;
-    zend_string *error = strpprintf(0, "%s", last_error);
-    return error;
+    return last_error;
 }
 zend_bool RocksDB::open(zend_bool readonly, Options options)
 {
-    status = DB::ListColumnFamilies(options, path, &column_families);
+    Status status = DB::ListColumnFamilies(options, path, &column_families);
     if(!status.ok())
     {
         m_last_error = status.ToString();
@@ -131,7 +130,7 @@ zend_bool RocksDB::put(string column_family, char *key, char *value)
     if (i < 0) {
         return false;
     }
-    status = m_rdb->Put(WriteOptions(), handles[i], key, value);
+    Status status = m_rdb->Put(WriteOptions(), handles[i], key, value);
     if(!status.ok())
     {
         m_last_error = status.ToString();
@@ -155,7 +154,7 @@ zend_bool RocksDB::get(string column_family, char *key, string* value)
     if (i < 0) {
         return false;
     }
-    status = m_rdb->Get(ReadOptions(), handles[i], key, value);
+    Status status = m_rdb->Get(ReadOptions(), handles[i], key, value);
     if(!status.ok())
     {
         m_last_error = status.ToString();
@@ -175,7 +174,7 @@ int RocksDB::handleIndex(string column_family)
     if (i >= column_families.size()) {
         column_families.push_back(column_family);
         ColumnFamilyHandle *handle;
-        status = m_rdb->CreateColumnFamily(ColumnFamilyOptions(), column_family, &handle);
+        Status status = m_rdb->CreateColumnFamily(ColumnFamilyOptions(), column_family, &handle);
         if(!status.ok())
         {
             m_last_error = status.ToString();
@@ -367,8 +366,8 @@ PHP_METHOD(RocksDB, mGet)
 }
 PHP_METHOD(RocksDB, lastError)
 {
-    zend_string *error = rocksDb.lastError();
-    RETURN_STR(error);
+    char *error = rocksDb.lastError();
+    RETURN_STRING(error);
 }
 
 PHP_METHOD(RocksDB, __destruct)
