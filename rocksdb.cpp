@@ -44,10 +44,6 @@ PHP_MINFO_FUNCTION(rocksdb)
 
 /* {{{ arginfo
  *  */
-ZEND_BEGIN_ARG_INFO_EX(arginfo_rocksdb_construct, 0, 0, 1)
- ZEND_ARG_INFO(0, path)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rocksdb_get, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
 ZEND_END_ARG_INFO()
@@ -57,7 +53,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_rocksdb_put, 0, 0, 2)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_rocksdb_open, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rocksdb_open, 0, 0, 2)
+    ZEND_ARG_INFO(0, path)
     ZEND_ARG_INFO(0, readonly)
 ZEND_END_ARG_INFO()
 
@@ -68,37 +65,32 @@ ZEND_END_ARG_INFO()
 /* {{{ rocksdb_functions[]
  *  */
 static const zend_function_entry rocksdb_functions[] = {
-    PHP_ME(RocksDB, __construct, arginfo_rocksdb_construct, ZEND_ACC_PUBLIC)
     PHP_ME(RocksDB, get, arginfo_rocksdb_get, ZEND_ACC_PUBLIC)
     PHP_ME(RocksDB, mGet, arginfo_rocksdb_get, ZEND_ACC_PUBLIC)
     PHP_ME(RocksDB, put, arginfo_rocksdb_put, ZEND_ACC_PUBLIC)
     PHP_ME(RocksDB, open, arginfo_rocksdb_open, ZEND_ACC_PUBLIC)
     PHP_ME(RocksDB, lastError, arginfo_rocksdb_void, ZEND_ACC_PUBLIC)
-    PHP_ME(RocksDB, __destruct, arginfo_rocksdb_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 /* }}} */
-void RocksDB::setPath(char *_path)
-{
-    path = _path;
-}
 char* RocksDB::lastError(void)
 {
     char *last_error = const_cast<char *>(m_last_error.c_str()) ;
     return last_error;
 }
-zend_bool RocksDB::open(zend_bool readonly, Options options)
+zend_bool RocksDB::open(char *path, zend_bool readonly, Options options)
 {
+    vector<ColumnFamilyDescriptor> _column_families;
     Status status = DB::ListColumnFamilies(options, path, &column_families);
     if(!status.ok())
     {
-        m_last_error = status.ToString();
-        return false;
-    }
-    vector<ColumnFamilyDescriptor> _column_families;
-    for (auto column_family : column_families) {
         _column_families.push_back(ColumnFamilyDescriptor(
-                column_family, ColumnFamilyOptions()));
+                kDefaultColumnFamilyName, ColumnFamilyOptions()));
+    } else {
+        for (auto column_family : column_families) {
+            _column_families.push_back(ColumnFamilyDescriptor(
+                    column_family, ColumnFamilyOptions()));
+        }
     }
     if (readonly)
     {
@@ -242,28 +234,20 @@ void RocksDB::close(void)
     delete m_rdb;
 }
 RocksDB rocksDb;
-PHP_METHOD(RocksDB, __construct)
+PHP_METHOD(RocksDB, open)
 {
     char *path;
     size_t path_len;
-    if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "s", &path, &path_len) == FAILURE) {
-        return;
-    }
-    rocksDb.setPath(path);
-    return;
-}
-
-PHP_METHOD(RocksDB, open)
-{
     zend_bool readonly = false;
-    ZEND_PARSE_PARAMETERS_START(0, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+        Z_PARAM_PATH(path, path_len)
         Z_PARAM_OPTIONAL
         Z_PARAM_BOOL(readonly)
     ZEND_PARSE_PARAMETERS_END();
 
     Options options;
     options.create_if_missing = true;
-    zend_bool is_success = rocksDb.open(readonly, options);
+    zend_bool is_success = rocksDb.open(path, readonly, options);
     if(!is_success)
     {
         RETURN_FALSE;
@@ -370,12 +354,6 @@ PHP_METHOD(RocksDB, lastError)
     RETURN_STRING(error);
 }
 
-PHP_METHOD(RocksDB, __destruct)
-{
-    rocksDb.close();
-    return;
-}
-
 zend_class_entry *rocksdb_ce;
 
 void rocksdb_init(void)
@@ -391,6 +369,11 @@ PHP_MINIT_FUNCTION(rocksdb)
     return SUCCESS;
 }
 
+PHP_RSHUTDOWN_FUNCTION(rocksdb)
+{
+    rocksDb.close();
+    return SUCCESS;
+}
 
 /* {{{ rocksdb_module_entry
  *  */
@@ -401,7 +384,7 @@ zend_module_entry rocksdb_module_entry = {
 	PHP_MINIT(rocksdb),							/* PHP_MINIT - Module initialization */
 	NULL,							/* PHP_MSHUTDOWN - Module shutdown */
 	PHP_RINIT(rocksdb),			/* PHP_RINIT - Request initialization */
-	NULL,							/* PHP_RSHUTDOWN - Request shutdown */
+    PHP_RSHUTDOWN(rocksdb),							/* PHP_RSHUTDOWN - Request shutdown */
 	PHP_MINFO(rocksdb),			/* PHP_MINFO - Module info */
     PHP_ROCKSDB_VERSION,		/* Version */
 	STANDARD_MODULE_PROPERTIES
