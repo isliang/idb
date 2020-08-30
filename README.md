@@ -1,6 +1,8 @@
 ## RocksDB PHP Extension
 This is a php extension for [rocksdb](https://github.com/facebook/rocksdb)
 
+[ide-helper](https://github.com/isliang/rocksdb-ide-helper)
+
 ## Simple Example
 
 ```php
